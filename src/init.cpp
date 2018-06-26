@@ -988,10 +988,14 @@ bool AppInit2(Config &config, boost::thread_group &threadGroup, CScheduler &sche
     }
 
     // Return the initial values for the various in memory caches.
+    int64_t nBlockDBCache = 0;
+    int64_t nBlockUndoDBCache = 0;
     int64_t nBlockTreeDBCache = 0;
     int64_t nCoinDBCache = 0;
-    GetCacheConfiguration(nBlockTreeDBCache, nCoinDBCache, nCoinCacheUsage);
+    GetCacheConfiguration(nBlockDBCache, nBlockUndoDBCache, nBlockTreeDBCache, nCoinDBCache, nCoinCacheUsage);
     LOGA("Cache configuration:\n");
+    LOGA("* Using %.1fMiB for block database\n", nBlockDBCache * (1.0 / 1024 / 1024));
+    LOGA("* Using %.1fMiB for block undo database\n", nBlockUndoDBCache * (1.0 / 1024 / 1024));
     LOGA("* Using %.1fMiB for block index database\n", nBlockTreeDBCache * (1.0 / 1024 / 1024));
     LOGA("* Using %.1fMiB for chain state database\n", nCoinDBCache * (1.0 / 1024 / 1024));
     LOGA("* Using %.1fMiB for in-memory UTXO set\n", nCoinCacheUsage * (1.0 / 1024 / 1024));
@@ -1027,8 +1031,19 @@ bool AppInit2(Config &config, boost::thread_group &threadGroup, CScheduler &sche
                     pblocktree = new CBlockTreeDB(nBlockTreeDBCache, "blocks", false, fReindex);
                     pblocktreeother = new CBlockTreeDB(nBlockTreeDBCache, "blockdb", false, fReindex);
                 }
-                pblockdb = new CBlockDB("blocks", nBlockTreeDBCache, false, false);
-                pblockundodb = new CBlockDB("undo", nBlockTreeDBCache, false, false);
+
+                // we want to have much larger file sizes for the blocks db so override the default.
+                COverrideOptions override;
+                override.max_file_size = nBlockDBCache / 2;
+                pblockdb = new CBlockDB("blocks", nBlockDBCache, false, false, false, &override);
+
+                // Make the undo file max size larger than the default and also configure the write buffer
+                // to be a larger proportion of the overall cache since we don't really need a big read buffer
+                // for undo files.
+                override.max_file_size = nBlockUndoDBCache;
+                override.write_buffer_size = nBlockUndoDBCache / 1.8;
+                pblockundodb = new CBlockDB("undo", nBlockUndoDBCache, false, false, false, &override);
+
                 uiInterface.InitMessage(_("Opening UTXO database..."));
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
