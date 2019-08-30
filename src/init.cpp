@@ -40,6 +40,7 @@
 #include "rpc/server.h"
 #include "script/sigcache.h"
 #include "script/standard.h"
+#include "slptokens/slpdb.h"
 #include "threadgroup.h"
 #include "torcontrol.h"
 #include "txadmission.h"
@@ -212,6 +213,11 @@ void Shutdown()
 
     {
         LOCK(cs_main);
+        if (pslpTokenTip != nullptr)
+        {
+            FlushStateToDisk();
+            pcoinsTip->Clear();
+        }
         if (pcoinsTip != nullptr)
         {
             // Flush state and clear cache completely to release as much memory as possible before continuing.
@@ -257,7 +263,13 @@ void Shutdown()
 
     {
         LOCK(cs_main);
-        if (pcoinsTip != nullptr)
+        if (pslpTokenTip != nullptr)
+        {
+            FlushStateToDisk();
+        }
+        delete pslpTokenTip;
+        pslpTokenTip = NULL;
+        if (pcoinsTip != NULL)
         {
             FlushStateToDisk();
         }
@@ -734,6 +746,9 @@ bool AppInit2(Config &config, thread_group &threadGroup)
         undofile_chunk_size = undofile_chunk_size * 8;
     }
 
+    // set SLP index
+    fSLPIndex = GetBoolArg("-txindex", DEFAULT_TXINDEX);
+
     // Make sure enough file descriptors are available
     int nBind = std::max((int)mapArgs.count("-bind") + (int)mapArgs.count("-whitebind"), 1);
     int nUserMaxConnections = GetArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS);
@@ -1111,8 +1126,10 @@ bool AppInit2(Config &config, thread_group &threadGroup)
             try
             {
                 UnloadBlockIndex();
+                delete pslpTokenTip;
                 delete pcoinsTip;
                 delete pcoinsdbview;
+                delete pslptokendbview;
                 delete pcoinscatcher;
                 delete pblocktree;
                 delete pblocktreeother;
@@ -1127,6 +1144,8 @@ bool AppInit2(Config &config, thread_group &threadGroup)
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
                 uiInterface.InitMessage(_("Opening Coins Cache database..."));
                 pcoinsTip = new CCoinsViewCache(pcoinscatcher);
+                pslptokendbview = new CSLPTokenDB(nCoinDBCache, false, fReindex);
+                pslpTokenTip = new CSLPTokenCache(pslptokendbview);
 
                 if (fReindex)
                 {

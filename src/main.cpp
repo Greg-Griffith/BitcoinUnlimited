@@ -233,6 +233,7 @@ CBlockIndex *FindForkInGlobalIndex(const CChain &chain, const CBlockLocator &loc
 }
 
 CCoinsViewCache *pcoinsTip = nullptr;
+CSLPTokenCache *pslpTokenTip = nullptr;
 CBlockTreeDB *pblocktree = nullptr;
 CBlockTreeDB *pblocktreeother = nullptr;
 

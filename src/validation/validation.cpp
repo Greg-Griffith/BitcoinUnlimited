@@ -18,6 +18,7 @@
 #include "index/txindex.h"
 #include "init.h"
 #include "requestManager.h"
+#include "slptokens/slpdb.h"
 #include "sync.h"
 #include "timedata.h"
 #include "txadmission.h"
@@ -1851,7 +1852,7 @@ uint32_t GetBlockScriptFlags(const CBlockIndex *pindex, const Consensus::Params 
  * @param out The out point that corresponds to the tx input.
  * @return A DisconnectResult as an int
  */
-int ApplyTxInUndo(Coin &&undo, CCoinsViewCache &view, const COutPoint &out)
+int ApplyTxInUndo(Coin &&undo, CCoinsViewCache &view, const COutPoint &out, CSLPTokenCache *slptokenview = nullptr)
 {
     bool fClean = true;
 
@@ -1880,13 +1881,24 @@ int ApplyTxInUndo(Coin &&undo, CCoinsViewCache &view, const COutPoint &out)
     // using HaveCoin, we don't need to guess. When fClean is false, a coin already existed and
     // it is an overwrite.
     view.AddCoin(out, std::move(undo), !fClean);
+    if (fSLPIndex && slptokenview)
+    {
+        CSLPToken token(undo.nHeight);
+        if (token.ParseBytes(undo.out.scriptPubKey))
+        {
+            slptokenview->AddSLPToken(out, std::move(token));
+        }
+    }
 
     return fClean ? DISCONNECT_OK : DISCONNECT_UNCLEAN;
 }
 
 /** Undo the effects of this block (with given index) on the UTXO set represented by coins.
  *  When UNCLEAN or FAILED is returned, view is left in an indeterminate state. */
-DisconnectResult DisconnectBlock(const CBlock &block, const CBlockIndex *pindex, CCoinsViewCache &view)
+DisconnectResult DisconnectBlock(const CBlock &block,
+    const CBlockIndex *pindex,
+    CCoinsViewCache &view,
+    CSLPTokenCache *slptokenview)
 {
     assert(pindex->GetBlockHash() == view.GetBestBlock());
 
@@ -1927,7 +1939,7 @@ DisconnectResult DisconnectBlock(const CBlock &block, const CBlockIndex *pindex,
         for (unsigned int j = tx.vin.size(); j-- > 0;)
         {
             const COutPoint &out = tx.vin[j].prevout;
-            int res = ApplyTxInUndo(std::move(txundo.vprevout[j]), view, out);
+            int res = ApplyTxInUndo(std::move(txundo.vprevout[j]), view, out, slptokenview);
             if (res == DISCONNECT_FAILED)
             {
                 error("DisconnectBlock(): ApplyTxInUndo failed");
@@ -1952,6 +1964,10 @@ DisconnectResult DisconnectBlock(const CBlock &block, const CBlockIndex *pindex,
                 COutPoint out(hash, o);
                 Coin coin;
                 view.SpendCoin(out, &coin);
+                if (fSLPIndex && slptokenview)
+                {
+                    slptokenview->SpendSLPToken(out);
+                }
                 if (tx.vout[o] != coin.out)
                 {
                     error("DisconnectBlock(): transaction output mismatch");
@@ -2295,7 +2311,8 @@ bool ConnectBlockCanonicalOrdering(const CBlock &block,
     bool fScriptChecks,
     CAmount &nFees,
     CBlockUndo &blockundo,
-    std::vector<std::pair<uint256, CDiskTxPos> > &vPos)
+    std::vector<std::pair<uint256, CDiskTxPos> > &vPos,
+    CSLPTokenCache *slptokenview)
 {
     nFees = 0;
     int64_t nTime2 = GetStopwatchMicros();
@@ -2361,6 +2378,10 @@ bool ConnectBlockCanonicalOrdering(const CBlock &block,
             try
             {
                 AddCoins(view, tx, pindex->nHeight);
+                if (fSLPIndex && slptokenview)
+                {
+                    AddSLPTokens(*slptokenview, tx, pindex->nHeight);
+                }
             }
             catch (std::logic_error &e)
             {
@@ -2478,6 +2499,10 @@ bool ConnectBlockCanonicalOrdering(const CBlock &block,
             }
 
             SpendCoins(tx, state, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
+            if (fSLPIndex && slptokenview)
+            {
+                SpendSLPTokens(tx, *slptokenview);
+            }
 
             vPos.push_back(std::make_pair(tx.GetHash(), pos));
             pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
@@ -2530,7 +2555,8 @@ bool ConnectBlock(const CBlock &block,
     CCoinsViewCache &view,
     const CChainParams &chainparams,
     bool fJustCheck,
-    bool fParallel)
+    bool fParallel,
+    CSLPTokenCache *slptokenview)
 {
     // pindex should be the header structure for this new block.  Check this by making sure that the nonces are the
     // same.
@@ -2593,8 +2619,9 @@ bool ConnectBlock(const CBlock &block,
 
     if (canonical)
     {
-        if (!ConnectBlockCanonicalOrdering(
-                block, state, pindex, view, chainparams, fJustCheck, fParallel, fScriptChecks, nFees, blockundo, vPos))
+        // we only pass slptokenview into canonical ordering because there were no slp tokens prior to the LTOR fork
+        if (!ConnectBlockCanonicalOrdering(block, state, pindex, view, chainparams, fJustCheck, fParallel,
+                fScriptChecks, nFees, blockundo, vPos, slptokenview))
             return false;
     }
     else
@@ -2939,7 +2966,12 @@ bool DisconnectTip(CValidationState &state, const Consensus::Params &consensusPa
     int64_t nStart = GetStopwatchMicros();
     {
         CCoinsViewCache view(pcoinsTip);
-        if (DisconnectBlock(block, pindexDelete, view) != DISCONNECT_OK)
+        CSLPTokenCache *slptokenview = nullptr;
+        if (fSLPIndex)
+        {
+            slptokenview = new CSLPTokenCache(pslpTokenTip);
+        }
+        if (DisconnectBlock(block, pindexDelete, view, slptokenview) != DISCONNECT_OK)
             return error("DisconnectTip(): DisconnectBlock %s failed", pindexDelete->GetBlockHash().ToString());
         bool result = view.Flush();
         assert(result);
@@ -3034,7 +3066,12 @@ bool ConnectTip(CValidationState &state,
     LOG(BENCH, "  - Load block from disk: %.2fms [%.2fs]\n", (nTime2 - nTime1) * 0.001, nTimeReadFromDisk * 0.000001);
     {
         CCoinsViewCache view(pcoinsTip);
-        bool rv = ConnectBlock(*pblock, state, pindexNew, view, chainparams, false, fParallel);
+        CSLPTokenCache *slptokenview = nullptr;
+        if (fSLPIndex)
+        {
+            slptokenview = new CSLPTokenCache(pslpTokenTip);
+        }
+        bool rv = ConnectBlock(*pblock, state, pindexNew, view, chainparams, false, fParallel, slptokenview);
         GetMainSignals().BlockChecked(*pblock, state);
         if (!rv)
         {

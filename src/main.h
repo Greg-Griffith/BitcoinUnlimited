@@ -20,6 +20,7 @@
 #include "net.h"
 #include "policy/policy.h"
 #include "script/script_error.h"
+#include "slptokens/slpdb.h"
 #include "sync.h"
 #include "txdb.h"
 #include "versionbits.h"
@@ -52,6 +53,8 @@ struct LockPoints;
 
 /** Global variable that points to the coins database */
 extern CCoinsViewDB *pcoinsdbview;
+
+extern CSLPTokenDB *pslptokendbview;
 
 /** Default for DEFAULT_WHITELISTRELAY. */
 static const bool DEFAULT_WHITELISTRELAY = true;
@@ -300,6 +303,8 @@ extern CChain chainActive;
 
 /** Global variable that points to the active CCoinsView (protected by cs_utxo) */
 extern CCoinsViewCache *pcoinsTip;
+
+extern CSLPTokenCache *pslpTokenTip;
 
 /** Global variable that points to the active block tree (protected by cs_main) */
 extern CBlockTreeDB *pblocktree;

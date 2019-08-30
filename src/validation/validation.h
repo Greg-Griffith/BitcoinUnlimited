@@ -17,6 +17,7 @@
 #include "versionbits.h"
 
 extern std::atomic<uint64_t> nBlockSizeAtChainTip;
+class CSLPTokenCache;
 
 enum DisconnectResult
 {
@@ -120,7 +121,10 @@ uint32_t GetBlockScriptFlags(const CBlockIndex *pindex, const Consensus::Params 
  *  In case pfClean is provided, operation will try to be tolerant about errors, and *pfClean
  *  will be true if no problems were found. Otherwise, the return value will be false in case
  *  of problems. Note that in any case, coins may be modified. */
-DisconnectResult DisconnectBlock(const CBlock &block, const CBlockIndex *pindex, CCoinsViewCache &view);
+DisconnectResult DisconnectBlock(const CBlock &block,
+    const CBlockIndex *pindex,
+    CCoinsViewCache &view,
+    CSLPTokenCache *slptokenview = nullptr);
 
 /** Apply the effects of this block (with given index) on the UTXO set represented by coins */
 bool ConnectBlock(const CBlock &block,
@@ -129,7 +133,8 @@ bool ConnectBlock(const CBlock &block,
     CCoinsViewCache &view,
     const CChainParams &chainparams,
     bool fJustCheck = false,
-    bool fParallel = false);
+    bool fParallel = false,
+    CSLPTokenCache *slptokenview = nullptr);
 
 /** Disconnect the current chainActive.Tip() */
 bool DisconnectTip(CValidationState &state, const Consensus::Params &consensusParams, const bool fRollBack = false);
