@@ -56,7 +56,7 @@ bool CSLPTokenDB::HaveToken(const COutPoint &outpoint) const
 
 bool CSLPTokenDB::BatchWrite(CSLPTokenMap &mapTokens,
     const uint256 &hashBlock,
-    const uint64_t nBestTokenHeight,
+    const int64_t nBestTokenHeight,
     size_t &nChildcachedTokensUsage)
 {
     WRITELOCK(cs_slp_utxo);

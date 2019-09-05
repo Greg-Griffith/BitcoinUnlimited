@@ -1144,7 +1144,7 @@ bool AppInit2(Config &config, thread_group &threadGroup)
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
                 uiInterface.InitMessage(_("Opening Coins Cache database..."));
                 pcoinsTip = new CCoinsViewCache(pcoinscatcher);
-                pslptokendbview = new CSLPTokenDB(nCoinDBCache, false, fReindex);
+                pslptokendbview = new CSLPTokenDB(cacheConfig.nCoinDBCache, false, fReindex);
                 pslpTokenTip = new CSLPTokenCache(pslptokendbview);
 
                 if (fReindex)

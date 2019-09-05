@@ -48,7 +48,7 @@ public:
     bool HaveToken(const COutPoint &outpoint) const;
     bool BatchWrite(CSLPTokenMap &mapTokens,
         const uint256 &hashBlock,
-        const uint64_t nBestCoinHeight,
+        const int64_t nBestCoinHeight,
         size_t &nChildCachedCoinsUsage);
     CCoinsViewCursor *Cursor() const;
 
@@ -73,7 +73,7 @@ protected:
      */
     CSLPTokenDB *base;
     mutable uint256 hashBlock;
-    mutable uint64_t nBestTokenHeight;
+    mutable int64_t nBestTokenHeight;
     mutable CSLPTokenMap cacheTokens;
     mutable CSharedCriticalSection csCacheInsert;
     /* Cached dynamic memory usage for the inner Coin objects. */
@@ -92,7 +92,7 @@ public:
     void SetBestBlock(const uint256 &hashBlock);
     bool BatchWrite(CCoinsMap &mapCoins,
         const uint256 &hashBlock,
-        const uint64_t nBestTokenHeight,
+        const int64_t nBestTokenHeight,
         size_t &nChildCachedCoinsUsage);
 
     /**
