@@ -45,7 +45,7 @@ private:
     std::vector<uint8_t> token_document_hash; // 32 bytes
     uint8_t decimals;
     uint64_t initial_token_mint_quantity;
-    // NOT IN SEND
+    // ONLY IN SEND
     uint64_t additional_token_quantity;
 
 public:
@@ -78,6 +78,7 @@ public:
         decimals = 0;
         initial_token_mint_quantity = 0;
         additional_token_quantity = 0;
+        nHeight = 0;
     }
 
     ADD_SERIALIZE_METHODS;
@@ -125,6 +126,9 @@ public:
     size_t DynamicMemoryUsage() const { return 223; }
     bool IsSpent() { return tx_type == SLP_NULL; }
     void Spend() { SetNull(); }
+    uint64_t GetOutputAmount();
+    uint64_t GetOutputAmountAt(uint32_t n);
+    uint32_t GetBatonOut();
 };
 
 #endif

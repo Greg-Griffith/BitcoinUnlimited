@@ -18,7 +18,7 @@
 #include "index/txindex.h"
 #include "init.h"
 #include "requestManager.h"
-#include "slptokens/slpdb.h"
+#include "slptokens/slpvalidation.h"
 #include "sync.h"
 #include "timedata.h"
 #include "txadmission.h"
@@ -2378,10 +2378,6 @@ bool ConnectBlockCanonicalOrdering(const CBlock &block,
             try
             {
                 AddCoins(view, tx, pindex->nHeight);
-                if (fSLPIndex && slptokenview)
-                {
-                    AddSLPTokens(*slptokenview, tx, pindex->nHeight);
-                }
             }
             catch (std::logic_error &e)
             {
@@ -2499,10 +2495,6 @@ bool ConnectBlockCanonicalOrdering(const CBlock &block,
             }
 
             SpendCoins(tx, state, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
-            if (fSLPIndex && slptokenview)
-            {
-                SpendSLPTokens(tx, *slptokenview);
-            }
 
             vPos.push_back(std::make_pair(tx.GetHash(), pos));
             pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
@@ -2517,6 +2509,25 @@ bool ConnectBlockCanonicalOrdering(const CBlock &block,
             if (GetArg("-pvtest", false))
                 MilliSleep(1000);
         }
+
+        // since SLP is a non consensus token protocol, we need to process it separately from the regular
+        // transaction and in a different order
+        if (fSLPIndex && slptokenview)
+        {
+            for (unsigned int i = 0; i < block.vtx.size(); i++)
+            {
+                const CTransaction &tx = *(block.vtx[i]);
+                std::vector<std::pair<size_t, CSLPToken> > valid_slp_txs;
+                valid_slp_txs = ValidateForSLP(view, tx, slptokenview, pindex->nHeight);
+                SpendSLPTokens(tx, *slptokenview);
+                const uint256 &txid = tx.GetHash();
+                for (auto &valid_slp_tx : valid_slp_txs)
+                {
+                    AddSLPToken(*slptokenview, txid, valid_slp_tx.first, valid_slp_tx.second);
+                }
+            }
+        }
+
         LOG(THIN, "Number of CheckInputs() performed: %d  Unverified count: %d\n", nChecked, nUnVerifiedChecked);
 
 

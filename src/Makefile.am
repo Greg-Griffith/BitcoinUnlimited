@@ -194,6 +194,7 @@ BITCOIN_CORE_H = \
   script/standard.h \
   script/ismine.h \
   slptokens/slpdb.h \
+  slptokens/slpvalidation.h \
   slptokens/token.h \
   streams.h \
   support/allocators/secure.h \
@@ -310,6 +311,7 @@ libbitcoin_server_a_SOURCES = \
   script/sigcache.cpp \
   script/ismine.cpp \
   slptokens/slpdb.cpp \
+  slptokens/slpvalidation.cpp \
   slptokens/token.cpp \
   timedata.cpp \
   torcontrol.cpp \

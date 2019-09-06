@@ -200,7 +200,8 @@ protected:
  * like validating the entire history of every input back to the mining point for every possible parental path.
  * But you need to properly rewind the SLP UTXO just like we need to rewind the BCH UTXO.
  */
-void AddSLPTokens(CSLPTokenCache &cache, const CTransaction &tx, int nHeight);
+void AddSLPToken(CSLPTokenCache &cache, const uint256 &txid, size_t i, CSLPToken &newToken);
+void AddSLPTokens(CSLPTokenCache &cache, const CTransaction &tx);
 void SpendSLPTokens(const CTransaction &tx, CSLPTokenCache &inputs);
 
 #endif

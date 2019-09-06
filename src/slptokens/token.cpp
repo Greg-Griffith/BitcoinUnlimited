@@ -410,3 +410,63 @@ uint8_t CSLPToken::_ParseBytes(const CScript &scriptPubKeyIn)
     // anything else (NULL TYPE) return an error
     return 5;
 }
+
+
+uint64_t CSLPToken::GetOutputAmount()
+{
+    if (tx_type == SLP_TX_TYPE::SLP_SEND)
+    {
+        uint64_t total_out = 0;
+        for (auto &amount : token_output_quantitys)
+        {
+            total_out = total_out + amount;
+        }
+        return total_out;
+    }
+    else if (tx_type == SLP_TX_TYPE::SLP_GENESIS)
+    {
+        return initial_token_mint_quantity;
+    }
+    else if (tx_type == SLP_TX_TYPE::SLP_MINT)
+    {
+        return additional_token_quantity;
+    }
+    return 0;
+}
+
+uint64_t CSLPToken::GetOutputAmountAt(uint32_t n)
+{
+    // check that n is a valid value
+    if (n > token_output_quantitys.size() - 1)
+    {
+        return 0;
+    }
+
+    // get the value
+    if (tx_type == SLP_TX_TYPE::SLP_SEND)
+    {
+        return token_output_quantitys[n];
+    }
+    else if (n != 1)
+    {
+        // genesis and mint transactions only put new tokens in output 1
+        // so if it isnt output 0 then we return 0
+        return 0;
+    }
+    else if (tx_type == SLP_TX_TYPE::SLP_GENESIS)
+    {
+        return initial_token_mint_quantity;
+    }
+    else if (tx_type == SLP_TX_TYPE::SLP_MINT)
+    {
+        return additional_token_quantity;
+    }
+    return 0;
+}
+
+uint32_t CSLPToken::GetBatonOut()
+{
+    // for non mint transactions this value will be 0, which is an invalid entry
+    // (token wouldnt parse) so it is fine to return it as a result
+    return mint_baton_vout;
+}

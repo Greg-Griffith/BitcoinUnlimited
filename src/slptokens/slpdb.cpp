@@ -260,13 +260,18 @@ void CSLPTokenCache::SpendSLPToken(const COutPoint &outpoint)
  * But you need to properly rewind the SLP UTXO just like we need to rewind the BCH UTXO.
  */
 
+ void AddSLPToken(CSLPTokenCache &cache, const uint256 &txid, size_t i, CSLPToken &newToken)
+ {
+     cache.AddSLPToken(COutPoint(txid, i), std::move(newToken));
+ }
+
 void AddSLPTokens(CSLPTokenCache &cache, const CTransaction &tx, int nHeight)
 {
     const uint256 &txid = tx.GetHash();
     for (size_t i = 0; i < tx.vout.size(); ++i)
     {
         CSLPToken newToken(nHeight);
-        if (!newToken.ParseBytes(tx.vout[i].scriptPubKey))
+        if (newToken.ParseBytes(tx.vout[i].scriptPubKey) != 0)
         {
             continue;
         }

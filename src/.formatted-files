@@ -140,6 +140,8 @@ reverselock.h
 serialize.h
 slptokens/slpdb.cpp
 slptokens/slpdb.h
+slptokens/slpvalidation.cpp
+slptokens/slpvalidation.h
 slptokens/token.cpp
 slptokens/token.h
 stat.h
