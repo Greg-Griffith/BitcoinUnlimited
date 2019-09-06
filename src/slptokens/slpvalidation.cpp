@@ -54,7 +54,7 @@ bool ValidateSend(CCoinsViewCache &view, const CTransaction &tx, CSLPToken &newT
     return (total_in == total_out);
 }
 
-std::vector<std::pair<size_t, CSLPToken> > ValidateForSLP(CCoinsViewCache &view, const CTransaction &tx, CSLPTokenCache *slptokenview, int nHeight)
+std::vector<std::pair<size_t, CSLPToken> > ValidateTxForSLP(CCoinsViewCache &view, const CTransaction &tx, CSLPTokenCache *slptokenview, int nHeight)
 {
     std::vector<std::pair<size_t, CSLPToken> >valid_slp_txs;
     std::vector<std::pair<size_t, CSLPToken> >slp_txs;
@@ -96,4 +96,20 @@ std::vector<std::pair<size_t, CSLPToken> > ValidateForSLP(CCoinsViewCache &view,
         valid_slp_txs.push_back(slp_tx);
     }
     return valid_slp_txs;
+}
+
+void ConnectBlockSLP(const CBlock &block, CCoinsViewCache &view, CSLPTokenCache *slptokenview, int nHeight)
+{
+    for (unsigned int i = 0; i < block.vtx.size(); i++)
+    {
+        const CTransaction &tx = *(block.vtx[i]);
+        std::vector<std::pair<size_t, CSLPToken> > valid_slp_txs;
+        valid_slp_txs = ValidateTxForSLP(view, tx, slptokenview, nHeight);
+        SpendSLPTokens(tx, *slptokenview);
+        const uint256 &txid = tx.GetHash();
+        for (auto &valid_slp_tx : valid_slp_txs)
+        {
+            AddSLPToken(*slptokenview, txid, valid_slp_tx.first, valid_slp_tx.second);
+        }
+    }
 }

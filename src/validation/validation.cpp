@@ -2514,18 +2514,7 @@ bool ConnectBlockCanonicalOrdering(const CBlock &block,
         // transaction and in a different order
         if (fSLPIndex && slptokenview)
         {
-            for (unsigned int i = 0; i < block.vtx.size(); i++)
-            {
-                const CTransaction &tx = *(block.vtx[i]);
-                std::vector<std::pair<size_t, CSLPToken> > valid_slp_txs;
-                valid_slp_txs = ValidateForSLP(view, tx, slptokenview, pindex->nHeight);
-                SpendSLPTokens(tx, *slptokenview);
-                const uint256 &txid = tx.GetHash();
-                for (auto &valid_slp_tx : valid_slp_txs)
-                {
-                    AddSLPToken(*slptokenview, txid, valid_slp_tx.first, valid_slp_tx.second);
-                }
-            }
+            ConnectBlockSLP(block, view, slptokenview, pindex->nHeight);
         }
 
         LOG(THIN, "Number of CheckInputs() performed: %d  Unverified count: %d\n", nChecked, nUnVerifiedChecked);

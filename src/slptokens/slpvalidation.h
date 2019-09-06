@@ -6,7 +6,7 @@
 #ifndef BITCOIN_SLP_VALIDATION_H
 #define BITCOIN_SLP_VALIDATION_H
 
-#include "primitives/transaction.h"
+#include "primitives/block.h"
 
 #include "slpdb.h"
 #include "token.h"
@@ -14,6 +14,6 @@
 #include <vector>
 #include <utility>
 
-std::vector<std::pair<size_t, CSLPToken> > ValidateForSLP(CCoinsViewCache &view, const CTransaction &tx, CSLPTokenCache *slptokenview, int nHeight);
+void ConnectBlockSLP(const CBlock &block, CCoinsViewCache &view, CSLPTokenCache *slptokenview, int nHeight);
 
 #endif
